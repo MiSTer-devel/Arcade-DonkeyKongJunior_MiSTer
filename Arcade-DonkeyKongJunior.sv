@@ -157,6 +157,7 @@ wire        ioctl_download;
 wire        ioctl_wr;
 wire [24:0] ioctl_addr;
 wire  [7:0] ioctl_dout;
+wire  [7:0] ioctl_index;
 
 wire [10:0] ps2_key;
 
@@ -182,6 +183,7 @@ hps_io #(.STRLEN($size(CONF_STR)>>3)) hps_io
 	.ioctl_wr(ioctl_wr),
 	.ioctl_addr(ioctl_addr),
 	.ioctl_dout(ioctl_dout),
+	.ioctl_index(ioctl_index),
 
 	.joystick_0(joy_0),
 	.joystick_1(joy_1),
@@ -337,7 +339,7 @@ dkongjr_top dkong
 
 	.dn_addr(ioctl_addr[18:0]),
 	.dn_data(ioctl_dout),
-	.dn_wr(ioctl_wr),
+	.dn_wr(ioctl_wr && ioctl_index==0),
 
 	.O_PIX(clk_pix),
 
