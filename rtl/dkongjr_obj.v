@@ -49,6 +49,7 @@ I_OBJ_D2,
 I_OBJ_D3,
 I_OBJ_D4,
 O_OBJ_AB,
+flip_screen,
 //---- Debug ---------
 //--------------------
 O_DB,
@@ -56,7 +57,6 @@ O_OBJ_DO,
 O_FLIP_VRAM,
 O_FLIP_HV,
 O_L_CMPBLKn
-
 );
 
 input  CLK_24M;
@@ -72,6 +72,7 @@ input  I_FLIPn;
 input  I_CMPBLKn;
 input  [9:0]I_H_CNT;
 input  [7:0]I_VF_CNT;
+input  flip_screen;
 output [7:0]O_DB;
 output [5:0]O_OBJ_DO;
 output O_FLIP_VRAM;
@@ -82,9 +83,9 @@ input  [7:0]I_OBJ_D1,I_OBJ_D2,I_OBJ_D3,I_OBJ_D4;
 //---- Debug ---------
 //--------------------
 
-wire   W_5F1_G = ~(I_H_CNT[0]&I_H_CNT[1]&I_H_CNT[2]&I_H_CNT[3]);
+wire   W_5F1_G = ~(&I_H_CNT[3:0]);
 reg    W_5B;
-always@(negedge CLK_24M) W_5B <= ~(I_H_CNT[0]&I_H_CNT[1]&I_H_CNT[2]&I_H_CNT[3]);
+always@(negedge CLK_24M) W_5B <= ~(&I_H_CNT[3:0]);
 
 wire   [3:0]W_5F1_Q;
 wire   [3:0]W_5F2_QB;
@@ -109,9 +110,9 @@ reg    [3:0]W_5F2_Q;
 always@(negedge CLK_24M) W_5F2_Q <= W_5F2_QB;
 
 //----------  FLIP ----------------------------------------------------
-wire   W_FLIP_1  = ~I_FLIPn;                          // INV  
+wire   W_FLIP_1  = ~I_FLIPn ^ flip_screen;            // INV
 wire   W_FLIP_2  =  W_FLIP_1 ^ 1'b1;                  // INV => XOR
-wire   W_FLIP_3  = ~W_FLIP_2;                         // INV => XOR => INV 
+wire   W_FLIP_3  = ~W_FLIP_2;                         // INV => XOR => INV
 wire   W_FLIP_4  =  W_FLIP_3 | W_5F2_Q[0];
 wire   W_FLIP_5  = ~W_FLIP_4;
 
@@ -138,24 +139,24 @@ reg    [7:0]W_6N_Q;
 always@(negedge CLK_12M) W_6N_Q <= I_OBJ_D;
 
 wire   [7:0]W_78R_A = W_6N_Q;
-wire   [7:0]W_78R_B = {4'b1111,I_FLIPn,W_FLIP_1,W_FLIP_1,1'b1}; 
+wire   [7:0]W_78R_B = {4'b1111, I_FLIPn ^ flip_screen, W_FLIP_1, W_FLIP_1, 1'b1};
 
 wire   [8:0]W_78R_Q = W_78R_A + W_78R_B + 8'b00000001;
 
 wire   [7:0]W_78P_A = W_78R_Q[7:0];
-wire   [7:0]W_78P_B = I_VF_CNT[7:0]; 
+wire   [7:0]W_78P_B = I_VF_CNT[7:0];
 
 wire   [8:0]W_78P_Q = W_78P_A + W_78P_B;
 
 reg    W_7H;
-always@(posedge CLK_12M) W_7H <= ~(W_78P_Q[7]&W_78P_Q[6]&W_78P_Q[5]&W_78P_Q[4]);
+always@(posedge CLK_12M) W_7H <= ~(&W_78P_Q[7:4]);
 
 reg    [7:0]W_5L_Q;
 reg    CLK_4L;
 always@(negedge CLK_24M) CLK_4L = ~(I_H_CNT[0]&(~I_H_CNT[1]));
 
-wire   W_6L = ~(W_5L_Q[6]|W_5L_Q[7]);
-wire   W_3P = ~(I_H_CNT[2]&I_H_CNT[3]&I_H_CNT[4]&I_H_CNT[5]&I_H_CNT[6]&I_H_CNT[7]&I_H_CNT[8] & W_6L);
+wire   W_6L = ~(|W_5L_Q[7:6]);
+wire   W_3P = ~(&I_H_CNT[8:2] & W_6L);
 
 //-- U_4L ---------------
 
@@ -189,12 +190,12 @@ reg    [7:0]W_HD;
 always@(negedge CLK_24M) W_HD <= W_RAM_7M_DOBn[8:1];
 
 wire   [7:0]W_78K_A = W_RAM_7M_DOBn[8:1];
-wire   [7:0]W_78K_B = {4'b1111,W_FLIP_5,W_FLIP_4,W_FLIP_4,1'b1}; 
+wire   [7:0]W_78K_B = {4'b1111,W_FLIP_5,W_FLIP_4,W_FLIP_4,1'b1};
 
 wire   [8:0]W_78K_Q = W_78K_A + W_78K_B + 8'b00000001;
 
 wire   [7:0]W_78J_A = W_78K_Q[7:0];
-wire   [7:0]W_78J_B = W_VFC_CNT[7:0]; 
+wire   [7:0]W_78J_B = W_VFC_CNT[7:0];
 
 wire   [8:0]W_78J_Q = W_78J_A + W_78J_B;
 wire   [7:0]W_8H_D = W_78J_Q[7:0];
@@ -229,7 +230,7 @@ logic_74xx109 U_8N(
 
 );
 
-wire   W_6F = ~(W_8H_Q[4]&W_8H_Q[5]&W_8H_Q[6]&W_8H_Q[7]);
+wire   W_6F = ~(&W_8H_Q[7:4]);
 wire   W_5J = W_8N_Q|W_6F;
 wire   W_6L1 = ~(W_5J|W_5B);
 
@@ -245,7 +246,7 @@ end
 //----------------------------------------------------------------
 
 wire   [10:0]W_ROM_OBJ_AB;
-assign W_ROM_OBJ_AB[3:0] = W_8H_Q[3:0]^{W_6H_Q[7],W_6H_Q[7],W_6H_Q[7],W_6H_Q[7]};
+assign W_ROM_OBJ_AB[3:0] = W_8H_Q[3:0]^{4{W_6H_Q[7]}};
 assign W_ROM_OBJ_AB[10:4] = W_6H_Q[6:0];
 
 //------  OBJ ROM  -----------------------------------------------
@@ -314,12 +315,12 @@ wire   W_3E_LD  = W_5F1_Q[1];
 reg    [7:0]W_3E_Q;
 always@(posedge CLK_3E)
 begin
-   if(W_3E_LD == 1'b0) 
+   if(W_3E_LD == 1'b0)
       W_3E_Q <= W_3E_LD_DI;
    else begin
-      if(W_3E_RST == 1'b0) 
+      if(W_3E_RST == 1'b0)
          W_3E_Q <= 0 ;
-      else     
+      else
          W_3E_Q <= W_3E_Q +1;
    end
 end
@@ -327,7 +328,7 @@ end
 wire   [5:0]W_RAM_2EH_DO;
 wire   [5:0]W_3J_B       = {W_6K_Q[3:0],W_8B_Y[2],W_8B_Y[3]};
 
-wire   [5:0]W_RAM_2EH_DI = W_6K_Q[5] ? 8'h00 :(W_8B_Y[2]|W_8B_Y[3])? W_3J_B: W_RAM_2EH_DO;
+wire   [5:0]W_RAM_2EH_DI = W_6K_Q[5] ? 8'h00 :(|W_8B_Y[3:2])? W_3J_B: W_RAM_2EH_DO;
 
 wire   [7:0]W_RAM_2EH_AB = W_3E_Q[7:0]^{8{W_6K_Q[4]}};
 

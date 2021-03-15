@@ -50,8 +50,12 @@ module dkongjr_top
 
 	input  [3:0]I_ANLG_VOL,
 	input  [7:0]I_DIP_SW,
-	
+
 	//    VGA (VIDEO) IF
+	input [8:0] H_OFFSET,
+	input [8:0] V_OFFSET,
+	input flip_screen,
+
 	output [2:0]O_VGA_R,
 	output [2:0]O_VGA_G,
 	output [1:0]O_VGA_B,
@@ -461,6 +465,9 @@ dkongjr_hv_count hv
 	.I_CLK(W_CLK_24576M),
 	.RST_n(W_RESETn),
 	.V_FLIP(W_FLIP_HV),
+	.H_OFFSET(H_OFFSET),
+	.V_OFFSET(V_OFFSET),
+
 	// output
 	.O_CLK(W_CLK_12288M),
 	.H_CNT(W_H_CNT),
@@ -472,7 +479,7 @@ dkongjr_hv_count hv
 	.H_SYNCn(W_H_SYNCn),
 	.V_SYNCn(W_V_SYNCn)
 );
-         
+
 //========    OBJ (VIDEO)    =====================================================
 
 dkongjr_obj obj
@@ -496,6 +503,7 @@ dkongjr_obj obj
 	.I_OBJ_D3(OBJ_ROM3_DO),
 	.I_OBJ_D4(OBJ_ROM4_DO),
 	.O_OBJ_AB(OBJ_ROM_A),
+	.flip_screen(flip_screen),
 	// Debug
 	// output
 	.O_DB(W_OBJ_DB),

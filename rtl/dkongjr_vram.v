@@ -31,58 +31,33 @@
 //-----------------------------------------------------------------------------------------
 
 module dkongjr_vram(
+    input         CLK_12M,
+    input   [9:0] I_AB,
+    input   [7:0] I_DB,
+    input         I_VRAM_WRn,
+    input         I_VRAM_RDn,
+    input         I_FLIP,
+    input   [9:0] I_H_CNT,
+    input   [7:0] I_VF_CNT,
+    input         I_CMPBLK,
 
-CLK_12M,
-I_AB,
-I_DB,
-I_VRAM_WRn,
-I_VRAM_RDn,
-I_FLIP,
-I_H_CNT,
-I_VF_CNT,
-I_CMPBLK,
-O_VRAM_AB,
-I_VRAM_D1,
-I_VRAM_D2,
-I_CNF_EN,
-I_CNF_A,
-I_CNF_D,
-I_WE4,
-I_4H_Q0,
-//---- Debug ----
-//---------------
-O_DB,
-O_COL,
-O_VID,
-O_VRAMBUSYn,
-O_ESBLKn
+    output [11:0] O_VRAM_AB,
+    input   [7:0] I_VRAM_D1,I_VRAM_D2,
 
+    input         I_CNF_EN,
+    input   [7:0] I_CNF_A,
+    input   [7:0] I_CNF_D,
+    input         I_WE4,
+    input         I_4H_Q0,
+
+    //---- Debug ----
+    //---------------
+    output     [7:0] O_DB,
+    output reg [3:0] O_COL,
+    output     [1:0] O_VID,
+    output           O_VRAMBUSYn,
+    output           O_ESBLKn
 );
-
-input  CLK_12M;
-input  [9:0]I_AB;
-input  [7:0]I_DB;
-input  I_VRAM_WRn;
-input  I_VRAM_RDn;
-input  I_FLIP;
-input  [9:0]I_H_CNT;
-input  [7:0]I_VF_CNT;
-input  I_CMPBLK;
-
-input  I_CNF_EN;
-input  [7:0]I_CNF_A;
-input  [7:0]I_CNF_D;
-input  I_WE4;
-input  I_4H_Q0;
-
-output [7:0]O_DB;
-output [3:0]O_COL;
-output [1:0]O_VID;
-output O_VRAMBUSYn;
-output O_ESBLKn;
-
-output [11:0]O_VRAM_AB;
-input  [7:0]I_VRAM_D1,I_VRAM_D2;
 
 //---- Debug ----
 //---------------
@@ -91,24 +66,19 @@ wire   [7:0]WO_DB;
 
 assign O_DB       = I_VRAM_RDn ? 8'h00: WO_DB;
 
-wire   [4:0]W_HF_CNT  = I_H_CNT[8:4]^{I_FLIP,I_FLIP,I_FLIP,I_FLIP,I_FLIP};
+wire   [4:0]W_HF_CNT  = I_H_CNT[8:4]^{5{I_FLIP}};
 wire   [9:0]W_cnt_AB  = {I_VF_CNT[7:3],W_HF_CNT[4:0]};
 wire   [9:0]W_vram_AB = I_CMPBLK ? W_cnt_AB : I_AB ;
 wire        W_vram_CS = I_CMPBLK ? 1'b0     : I_VRAM_WRn & I_VRAM_RDn;
 wire        W_2S4     = I_CMPBLK ? 1'b0     : 1'b1 ;
 
-reg    CLK_2M;
-always@(negedge CLK_12M) CLK_2M <= ~(I_H_CNT[1]&I_H_CNT[2]&I_H_CNT[3]);
-
 ram_1024_8 U_2PR(
-
-.I_CLK(~CLK_12M),
-.I_ADDR(W_vram_AB),
-.I_D(WI_DB),
-.I_CE(~W_vram_CS),
-.I_WE(~I_VRAM_WRn),
-.O_D(WO_DB)
-
+    .I_CLK(~CLK_12M),
+    .I_ADDR(W_vram_AB),
+    .I_D(WI_DB),
+    .I_CE(~W_vram_CS),
+    .I_WE(~I_VRAM_WRn),
+    .O_D(WO_DB)
 );
 
 wire   [3:0]W_2N_DO;
@@ -117,22 +87,21 @@ wire   [7:0]W_2N_AD = I_CNF_EN ? I_CNF_A : {W_vram_AB[9:7],W_vram_AB[4:0]};
 wire   [3:0]W_2N_DI = I_CNF_EN ? I_CNF_D[3:0] : 4'h0 ;
 
 ram_2N U_2N(
-
-.I_CLK(CLK_12M),
-.I_ADDR(W_2N_AD),
-.I_D(W_2N_DI),
-.I_CE(1'b1),
-.I_WE(I_WE4),
-.O_D(W_2N_DO)
-
+    .I_CLK(CLK_12M),
+    .I_ADDR(W_2N_AD),
+    .I_D(W_2N_DI),
+    .I_CE(1'b1),
+    .I_WE(I_WE4),
+    .O_D(W_2N_DO)
 );
 
 //    Parts  2M
-reg    [3:0]O_COL;
-//always@(negedge CLK_2M) O_COL[3:0] <= W_2N_DO[3:0];
+reg    CLK_2M;
+always@(negedge CLK_12M) CLK_2M <= ~(&I_H_CNT[3:1]);
 
 // Delay added to colour output. Temporary fix for colour timing issue.
 // Further investigation needed.
+//always@(negedge CLK_2M) O_COL[3:0] <= W_2N_DO[3:0];
 always@(negedge I_H_CNT[0]) begin
 
 	reg prev;
@@ -144,6 +113,7 @@ always@(negedge I_H_CNT[0]) begin
 	end
 
 end
+
 
 wire   [7:0]W_3P_DO,W_3N_DO;
 wire   ROM_3PN_CE = ~I_H_CNT[9];
@@ -207,7 +177,7 @@ begin
    if(I_H_CNT[9] == 1'b0)
       W_VRAMBUSY <= 1'b1;
    else
-      W_VRAMBUSY <= I_H_CNT[4]&I_H_CNT[5]&I_H_CNT[6]&I_H_CNT[7];
+      W_VRAMBUSY <= &I_H_CNT[7:4];
 end
 
 //------  PARTS 2K2 ----------------------------------------------
