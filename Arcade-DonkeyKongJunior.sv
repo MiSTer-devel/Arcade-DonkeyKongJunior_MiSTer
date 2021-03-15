@@ -128,16 +128,20 @@ assign VIDEO_ARX = (!ar) ? ((status[2] ) ? 8'd4 : 8'd3) : (ar - 1'd1);
 assign VIDEO_ARY = (!ar) ? ((status[2] ) ? 8'd3 : 8'd4) : 12'd0;
 
 
-`include "build_id.v" 
+`include "build_id.v"
 localparam CONF_STR = {
 	"A.DKONGJ;;",
 	"-;",
 	"H0OJK,Aspect ratio,Original,Full Screen,[ARC1],[ARC2];",
 	"H0O2,Orientation,Vert,Horz;",
-	"O35,Scandoubler Fx,None,HQ2x,CRT 25%,CRT 50%,CRT 75%;",  
+	"O35,Scandoubler Fx,None,HQ2x,CRT 25%,CRT 50%,CRT 75%;",
+	"O7,Flip Screen,Off,On;",
+	"OOS,Analog Video H-Pos,0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31;",
+	"OTV,Analog Video V-Pos,0,1,2,3,4,5,6,7;",
 	"-;",
 	"O6,Sound Filter,On,Off;",
 	"ODG,Analogue Sound Vol,70%,80%,90%,100%,Off,10%,20%,30%,40%,50%,60%;",
+
 	"-;",
 	"DIP;",
 	//"O89,Lives,3,4,5,6;",
@@ -263,7 +267,7 @@ arcade_video#(256,8) arcade_video
 	.VBlank(vblank),
 	.HSync(~hs),
 	.VSync(~vs),
-	
+
 	.fx(status[5:3])
 );
 
@@ -289,7 +293,7 @@ always @(posedge clk_sys) begin
 	end
 end
 
-dkongjr_top dkong 
+dkongjr_top dkong
 (
 	.I_CLK_24576M(clk_sys),
 	.I_RESETn(~(RESET | status[0] | buttons[1] | ioctl_download)),
@@ -305,7 +309,7 @@ dkongjr_top dkong
 	.I_L1(~m_left),
 	.I_R1(~m_right),
 	.I_J1(~m_fire),
-	
+
 	.I_U2(~m_up_2),
 	.I_D2(~m_down_2),
 	.I_L2(~m_left_2),
@@ -318,8 +322,12 @@ dkongjr_top dkong
 	.I_SF(~m_filter),
 	//.I_DEBUG(~m_debug),
 
-   .I_ANLG_VOL(status[16:13]),
-   .I_DIP_SW(sw[0]),
+	.I_ANLG_VOL(status[16:13]),
+	.I_DIP_SW(sw[0]),
+
+	.flip_screen(status[7]),
+	.H_OFFSET(status[28:24]),
+	.V_OFFSET(status[31:29]),
 
 	.O_VGA_R(r),
 	.O_VGA_G(g),
@@ -352,17 +360,17 @@ reg  [1:0] last_h,last_v;
 assign outdir = out;
 
 always @(posedge clk) begin
-	
+
 	in1 <= indir;
 	in2 <= in1;
-	
+
 	if(innew[0]) last_h <= 2'b01; // R
 	if(innew[1]) last_h <= 2'b10; // L
 	if(innew[2]) last_v <= 2'b01; // D
 	if(innew[3]) last_v <= 2'b10; // U
-	
-	out[1:0] <= in1[1:0] == 2'b11 ? last_h : in1[1:0]; 
-	out[3:2] <= in1[3:2] == 2'b11 ? last_v : in1[3:2]; 
+
+	out[1:0] <= in1[1:0] == 2'b11 ? last_h : in1[1:0];
+	out[3:2] <= in1[3:2] == 2'b11 ? last_v : in1[3:2];
 end
 
 endmodule
