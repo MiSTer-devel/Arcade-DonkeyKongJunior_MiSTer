@@ -56,7 +56,14 @@ module dkongjr_vram(
     output reg [3:0] O_COL,
     output     [1:0] O_VID,
     output           O_VRAMBUSYn,
-    output           O_ESBLKn
+    output           O_ESBLKn,
+
+    input            hs_clock,
+    input      [9:0] hs_address,
+    output     [7:0] hs_data_out,
+    input      [7:0] hs_data_in,
+    input            hs_write,
+    input            hs_access
 );
 
 //---- Debug ----
@@ -72,13 +79,20 @@ wire   [9:0]W_vram_AB = I_CMPBLK ? W_cnt_AB : I_AB ;
 wire        W_vram_CS = I_CMPBLK ? 1'b0     : I_VRAM_WRn & I_VRAM_RDn;
 wire        W_2S4     = I_CMPBLK ? 1'b0     : 1'b1 ;
 
-ram_1024_8 U_2PR(
-    .I_CLK(~CLK_12M),
-    .I_ADDR(W_vram_AB),
-    .I_D(WI_DB),
-    .I_CE(~W_vram_CS),
-    .I_WE(~I_VRAM_WRn),
-    .O_D(WO_DB)
+ram_1024_8_8 U_2PR(
+    .I_CLKA(~CLK_12M),
+    .I_ADDRA(W_vram_AB),
+    .I_DA(WI_DB),
+    .I_CEA(~W_vram_CS),
+    .I_WEA(~I_VRAM_WRn),
+    .O_DA(WO_DB),
+
+    .I_CLKB(hs_clock),
+    .I_ADDRB(hs_address),
+    .I_DB(hs_data_in),
+    .I_CEB(hs_access),
+    .I_WEB(hs_write),
+    .O_DB(hs_data_out)
 );
 
 wire   [3:0]W_2N_DO;

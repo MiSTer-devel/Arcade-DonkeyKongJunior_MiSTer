@@ -65,7 +65,16 @@ module dkongjr_top
 	output O_VGA_V_SYNCn,
 
 	//    SOUND IF
-	output signed [15:0] O_SOUND_DAT
+	output signed [15:0] O_SOUND_DAT,
+
+	input 			pause,
+
+	input  [15:0]	hs_address,
+	output [7:0]	hs_data_out,
+	input  [7:0]	hs_data_in,
+	input				hs_write,
+	input				hs_access
+
 );
 
 assign O_H_BLANK = ~W_H_BLANKn;
@@ -158,7 +167,7 @@ Z80IP CPU
 	.IORQ_N(),
 	.RD_N(W_CPU_RDn ),
 	.WR_N(W_CPU_WRn ),
-	.WAIT_N(W_CPU_WAITn),
+	.WAIT_N(W_CPU_WAITn & ~pause),
 	.BUSWO(),
 	.RFSH_N(W_CPU_RFSHn),
 	.HALT_N()
@@ -295,14 +304,29 @@ end
 
 //========   INT RAM Interface  ==================================================
 
-ram_1024_8 U_3C4C
+// hiscore mux
+wire	[7:0]		hs_data_out_ram1;
+wire	[7:0]		hs_data_out_vram;
+wire				hs_cs_ram1 = (hs_address[15:12] == 4'b0110);
+wire				hs_cs_vram = (hs_address[15:12] == 4'b0111);
+assign hs_data_out = hs_cs_ram1 ? hs_data_out_ram1 : 
+							hs_cs_vram ? hs_data_out_vram : 8'b0;
+
+ram_1024_8_8 U_3C4C
 (
-	.I_CLK(~W_CLK_12288M),
-	.I_ADDR(W_CPU_A[9:0]),
-	.I_D(WI_D),
-	.I_CE(~W_RAM1_CSn),
-	.I_WE(~W_CPU_WRn),
-	.O_D(W_RAM1_DO)
+	.I_CLKA(~W_CLK_12288M),
+	.I_ADDRA(W_CPU_A[9:0]),
+	.I_DA(WI_D),
+	.I_CEA(~W_RAM1_CSn),
+	.I_WEA(~W_CPU_WRn),
+	.O_DA(W_RAM1_DO),
+
+	.I_CLKB(I_CLK_24576M),
+	.I_ADDRB(hs_address[9:0]),
+	.I_DB(hs_data_in),
+	.I_CEB(hs_access & hs_cs_ram1),
+	.I_WEB(hs_write & hs_cs_ram1),
+	.O_DB(hs_data_out_ram1)
 );
 
 ram_1024_8 U_3B4B
@@ -541,7 +565,14 @@ dkongjr_vram vram
 	.O_COL(W_VRAM_COL),
 	.O_VID(W_VRAM_VID),
 	.O_VRAMBUSYn(W_VRAMBUSYn),
-	.O_ESBLKn()
+	.O_ESBLKn(),
+
+	.hs_clock(I_CLK_24576M),
+	.hs_address(hs_address[9:0]),
+	.hs_data_in(hs_data_in),
+	.hs_data_out(hs_data_out_vram),
+	.hs_write(hs_write & hs_cs_vram),
+	.hs_access(hs_access & hs_cs_vram)
 );
 
 //========   COLOR PALETE    =====================================================
