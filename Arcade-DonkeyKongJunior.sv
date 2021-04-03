@@ -150,8 +150,8 @@ localparam CONF_STR = {
 	"-;",
 
 	"R0,Reset;",
-	"J1,Jump,Start 1P,Start 2P,Coin;",
-	"jn,A,Start,Select,R;",
+	"J1,Jump,Start 1P,Start 2P,Coin,Pause;",
+	"jn,A,Start,Select,R,L;",
 	"V,v",`BUILD_DATE
 };
 
@@ -173,11 +173,13 @@ wire  [1:0] buttons;
 wire        forced_scandoubler;
 wire        direct_video;
 
-wire        ioctl_download;
-wire        ioctl_wr;
-wire [24:0] ioctl_addr;
-wire  [7:0] ioctl_dout;
-wire  [7:0] ioctl_index;
+wire				ioctl_download;
+wire				ioctl_upload;
+wire				ioctl_wr;
+wire	[7:0]		ioctl_index;
+wire	[24:0]	ioctl_addr;
+wire	[7:0]		ioctl_dout;
+wire	[7:0]		ioctl_din;
 
 wire [15:0] joy_0, joy_1;
 wire [21:0] gamma_bus;
@@ -198,9 +200,11 @@ hps_io #(.STRLEN($size(CONF_STR)>>3)) hps_io
 	.status_menumask(direct_video),
 
 	.ioctl_download(ioctl_download),
+	.ioctl_upload(ioctl_upload),
 	.ioctl_wr(ioctl_wr),
 	.ioctl_addr(ioctl_addr),
 	.ioctl_dout(ioctl_dout),
+	.ioctl_din(ioctl_din),
 	.ioctl_index(ioctl_index),
 
 	.joystick_0(joy_0),
@@ -239,7 +243,35 @@ wire m_start1 =  joy_0[5] | joy_1[5];
 wire m_start2 =  joy_0[6] | joy_1[6];
 wire m_coin   = joy_0[7] | joy_1[7];
 wire m_filter = status[6];
+wire m_pause   = joy_0[8] | joy_1[8];
 
+// PAUSE SYSTEM
+reg				pause;									// Pause signal (active-high)
+reg				pause_toggle = 1'b0;					// User paused (active-high)
+reg [31:0]		pause_timer;							// Time since pause
+reg [31:0]		pause_timer_dim = 31'h11E1A300;	// Time until screen dim (10 seconds @ 48Mhz)
+reg 				dim_video = 1'b0;						// Dim video output (active-high)
+
+// Pause when highscore module requires access, user has pressed pause, or OSD is open and option is set
+assign pause = hs_access | pause_toggle; //  | (OSD_STATUS && ~status[8]);
+assign dim_video = (pause_timer >= pause_timer_dim) ? 1'b1 : 1'b0;
+
+always @(posedge clk_sys) begin
+	reg old_pause;
+	old_pause <= m_pause;
+	if(~old_pause & m_pause) pause_toggle <= ~pause_toggle;
+	if(pause_toggle)
+	begin
+		if(pause_timer<pause_timer_dim)
+		begin
+			pause_timer <= pause_timer + 1'b1;
+		end
+	end
+	else
+	begin
+		pause_timer <= 1'b0;
+	end
+end
 
 // https://www.arcade-museum.com/dipswitch-settings/7612.html
 //wire [7:0]m_dip = {~status[12], 3'b000, status[11:10], status[9:8]};
@@ -251,6 +283,8 @@ wire hblank, vblank;
 wire hs, vs;
 wire [2:0] r,g;
 wire [1:0] b;
+wire [7:0] rgb_out = dim_video ? {r >> 1,g >> 1, b >> 1} : {r,g,b};
+
 wire rotate_ccw = 0;
 wire no_rotate = status[2] | direct_video  ;
 screen_rotate screen_rotate (.*);
@@ -262,7 +296,7 @@ arcade_video#(256,8) arcade_video
 	.clk_video(clk_sys),
 	.ce_pix(ce_vid),
 
-	.RGB_in({r,g,b}),
+	.RGB_in(rgb_out),
 	.HBlank(hblank),
 	.VBlank(vblank),
 	.HSync(~hs),
@@ -293,14 +327,17 @@ always @(posedge clk_sys) begin
 	end
 end
 
+wire rom_download = ioctl_download & !ioctl_index;
+wire reset = RESET | status[0] | buttons[1] | ioctl_download;
+
 dkongjr_top dkong
 (
 	.I_CLK_24576M(clk_sys),
-	.I_RESETn(~(RESET | status[0] | buttons[1] | ioctl_download)),
+	.I_RESETn(~reset),
 
 	.dn_addr(ioctl_addr[18:0]),
 	.dn_data(ioctl_dout),
-	.dn_wr(ioctl_wr && ioctl_index==0),
+	.dn_wr(ioctl_wr && rom_download),
 
 	.O_PIX(clk_pix),
 
@@ -338,7 +375,42 @@ dkongjr_top dkong
 	.O_H_BLANK(hbl0),
 	.O_V_BLANK(vblank),
 
-	.O_SOUND_DAT(audio)
+	.O_SOUND_DAT(audio),
+
+	.pause(pause),
+
+	.hs_address(hs_address),
+	.hs_data_in(hs_data_in),
+	.hs_data_out(ioctl_din),
+	.hs_write(hs_write),
+	.hs_access(hs_access)
+);
+
+// HISCORE SYSTEM
+wire [15:0]hs_address;
+wire [7:0]hs_data_in;
+wire hs_write;
+wire hs_access;
+
+hiscore #(
+	.HS_ADDRESSWIDTH(16),
+	.HS_SCOREWIDTH(8),
+	.CFG_ADDRESSWIDTH(4),
+	.CFG_LENGTHWIDTH(2)
+) hi (
+	.clk(clk_sys),
+	.reset(reset),
+	.ioctl_upload(ioctl_upload),
+	.ioctl_download(ioctl_download),
+	.ioctl_wr(ioctl_wr),
+	.ioctl_addr(ioctl_addr),
+	.ioctl_dout(ioctl_dout),
+	.ioctl_din(ioctl_din),
+	.ioctl_index(ioctl_index),
+	.ram_address(hs_address),
+	.data_to_ram(hs_data_in),
+	.ram_write(hs_write),
+	.ram_access(hs_access)
 );
 
 endmodule

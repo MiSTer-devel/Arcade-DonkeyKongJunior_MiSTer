@@ -46,5 +46,6 @@ set_global_assignment -name VERILOG_FILE rtl/dkongjr_rom.v
 set_global_assignment -name VERILOG_FILE rtl/dkongjr_dma.v
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/dkongjr_dac.sv
 set_global_assignment -name VERILOG_FILE rtl/dkongjr_iir_filter.v
-set_global_assignment -name VHDL_FILE dpram.vhd
+set_global_assignment -name VHDL_FILE rtl/dpram.vhd
+set_global_assignment -name VERILOG_FILE rtl/hiscore.v
 set_global_assignment -name SYSTEMVERILOG_FILE "Arcade-DonkeyKongJunior.sv"

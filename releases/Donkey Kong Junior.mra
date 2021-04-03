@@ -10,7 +10,7 @@
 	<category>Platform / Mario Bros.</category>
 	<rbf>donkeykongjunior</rbf>
 
-  <buttons names="Jump,Start 1P,Start 2P,Coin" default="A,Start,Select,R" />
+  <buttons names="Jump,Start 1P,Start 2P,Coin,Pause" default="A,Start,Select,R,L" />
 
 
 	<switches default="80">
@@ -6187,4 +6187,19 @@ ff ff 01 00 fe ff 02 00 fe ff 03 00 fe ff 00 00
 01 00 fe ff 03 00 fd ff 04 00 fb ff 05 00 fc ff 
 		</part>
 	</rom>
+	<rom index="3" md5="none">
+		<part>
+		00 2F FF FF 00 FF 00 02 00 02 00 01 00 FF 00 00
+		00 00 61 05 00 9E 10 10
+		00 00 60 B8 00 03 50 00
+		00 00 76 61 00 01 10 10
+		00 00 76 41 00 01 00 00
+		00 00 76 21 00 01 00 00
+		00 00 76 01 00 01 07 07
+		00 00 75 E1 00 01 06 06
+		00 00 75 C1 00 01 05 05
+		00 00 75 A1 00 01 00 00
+		</part>
+	</rom>
+	<nvram index="4" size="168"/>
 </misterromdescription>
